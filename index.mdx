@@ -1,16 +1,51 @@
 ---
 title: "Introduction"
 description: "How a long-running agent turn works."
+keywords:
+  - "agent chat"
+  - "runs"
+  - "long-running"
+sidebarTitle: "Introduction"
 ---
 
-The backend is not deployed to a public host yet. Every route below is served from `/api/v1` on that backend. While you run it locally, the host is `http://localhost:3001`. After you deploy it, use that deployment's origin with the same paths.
+The public API is versioned at `/api/v1`.
+
+<Note>
+  Locally the host is `http://localhost:3001`. In production, use the HTTPS origin of the API. This site is the reference. It is not a second API host.
+</Note>
 
 A message does not wait for the model to finish.
 
-1. `POST /api/v1/chat/completions` or `POST /api/v1/chats/{chatId}/messages` validates the caller, saves the user message, and starts one durable run.
-2. The response is `202` with `runId`. Poll `GET /api/v1/runs/{runId}` until `status` is `completed`, `failed`, or `cancelled`.
-3. Text streams separately from run status. PostgreSQL remains the copy that a reload reads.
+<Steps>
+  <Step title="Start the turn">
+    `POST /api/v1/chat/completions` or `POST /api/v1/chats/{chatId}/messages` checks the caller, saves the user message, and starts one durable run.
+  </Step>
+  <Step title="Read the run">
+    The response is `202` with `runId`. Poll `GET /api/v1/runs/{runId}` until `status` is `completed`, `failed`, or `cancelled`.
+  </Step>
+  <Step title="Reload from Postgres">
+    Text streams on stream id `agent-output`. Run status travels as metadata. PostgreSQL is the copy a reload reads.
+  </Step>
+</Steps>
 
 A chat can have one active run. A second send returns `409` with that run's id.
 
 Crop Image, GPT Image 2, and Merge Videos run on Magica. The Magica key never leaves the server. The model route is OpenRouter Free (`openrouter/free`) with no paid fallback.
+
+<Columns cols={2}>
+  <Card title="Authentication" icon="key" href="/quickstart">
+    Clerk session tokens and `ak_` API keys.
+  </Card>
+
+  <Card title="Errors" icon="triangle-alert" href="/errors">
+    One JSON envelope for every failed request.
+  </Card>
+
+  <Card title="Runs" icon="play" href="/runs">
+    Status, cancel, retry, and a fresh realtime token.
+  </Card>
+
+  <Card title="Webhooks" icon="webhook" href="/webhooks">
+    Signed notices when a turn or a tool finishes.
+  </Card>
+</Columns>

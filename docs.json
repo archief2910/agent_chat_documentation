@@ -23,7 +23,9 @@
         "pages": [
           "completions",
           "runs",
-          "tools"
+          "tools",
+          "uploads",
+          "credits"
         ]
       },
       {

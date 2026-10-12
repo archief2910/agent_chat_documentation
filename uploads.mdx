@@ -1,0 +1,43 @@
+---
+title: "Uploads"
+description: "Sign a Transloadit assembly and record the finished files."
+keywords: ["uploads", "transloadit", "assets"]
+---
+
+The browser uploads the bytes. The API only signs the assembly and records the result.
+
+<Steps>
+  <Step title="Ask for a signature">
+    `POST /api/v1/uploads/assemblies`
+
+    ```json
+    {
+      "files": [{ "name": "clip.mp4", "size": 1048576, "mime": "video/mp4" }]
+    }
+    ```
+
+    `files` holds 1 to 8 items. The API rejects a non-media MIME type, a file over 500 MB, and a month that would pass 5 GB.
+
+    ```json
+    {
+      "uploadId": "upl_123",
+      "params": "{...}",
+      "signature": "...",
+      "expiresAt": "2026-10-13T00:00:00.000Z"
+    }
+    ```
+
+    The Transloadit secret is not in this response.
+  </Step>
+  <Step title="Upload the bytes">
+    The browser sends the file to Transloadit with Uppy over tus, using `params` and `signature`.
+  </Step>
+  <Step title="Accept the notify">
+    Transloadit `POST`s `/api/v1/uploads/notify`. The API checks the HMAC over the raw `transloadit` field. A bad signature is `403`. `ASSEMBLY_COMPLETED` inserts `Asset` rows for that user. A second delivery returns the stored status and does not insert again.
+  </Step>
+  <Step title="Complete from the client">
+    `POST /api/v1/uploads/{uploadId}/complete` with `{ "assemblyId": "<32 hex characters>" }`. The API reads the assembly from Transloadit. It does not trust a file list sent by the browser.
+  </Step>
+</Steps>
+
+`GET /api/v1/assets` lists the caller's files. `GET /api/v1/assets/file?url=` downloads one file the caller owns. `url` must be the stored http or https address.

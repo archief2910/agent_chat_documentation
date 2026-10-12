@@ -1,0 +1,40 @@
+---
+title: "Credits"
+description: "Balance, ledger, and usage for one account."
+keywords: ["credits", "ledger", "usage"]
+---
+
+One credit is 1,000,000 microcredits. The ledger stores microcredits. Amounts in JSON are strings so they do not lose precision.
+
+`GET /api/v1/credits`
+
+```json
+{
+  "balanceMicrocredits": "10000000",
+  "credits": "10",
+  "entries": [
+    {
+      "id": "led_123",
+      "type": "grant",
+      "amountMicrocredits": "10000000",
+      "credits": "10",
+      "balanceAfter": "10000000",
+      "runId": null,
+      "createdAt": "2026-10-13T00:00:00.000Z"
+    }
+  ],
+  "nextCursor": null
+}
+```
+
+`type` is `grant`, `hold`, `capture`, or `release`.
+
+| Event | Ledger |
+| --- | --- |
+| First time a Clerk user is seen | Grant of 10 credits, once. Key `grant:{userId}`. |
+| Send a message | Hold of 5,000 microcredits. If the balance cannot cover it, the API returns `402` and writes nothing. |
+| Magica tool | Hold the estimate, then capture the real charge once. Key `capture:{runId}:{toolCallId}`. |
+| OpenRouter | Token counts are saved. The application charge is 0. |
+| Run ends | The unused hold is released once. The balance cannot go negative. |
+
+`GET /api/v1/usage?period=current` summarizes debited credits. `period` is `current`, `previous`, or `older`.

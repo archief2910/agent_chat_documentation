@@ -1,9 +1,12 @@
 ---
 title: Conversations
 description: Create a chat, submit a message, and read history.
+keywords:
+  - "chats"
+  - "messages"
+  - "completions"
+sidebarTitle: "Conversations"
 ---
-
-Paths are relative to the backend origin. There is no public host yet. Use `http://localhost:3001` while the server runs locally.
 
 ## Start a turn
 
@@ -18,7 +21,7 @@ Paths are relative to the backend origin. There is no public host yet. Use `http
 }
 ```
 
-Omit `chatId` to create a chat. Send the same `clientMessageId` again to get the original run instead of a second one.
+Omit `chatId` to create a chat. `clientMessageId` is optional on this route. If you omit it, the server generates one. Send the same `clientMessageId` again to get the original run instead of a second one. This route does not accept attachments.
 
 `202` response:
 
@@ -30,16 +33,33 @@ Omit `chatId` to create a chat. Send the same `clientMessageId` again to get the
   "runId": "run_123",
   "status": "queued",
   "replayed": false,
-  "realtime": { "token": "pk_...", "triggerRunId": "run_trigger", "streamId": "agent-output" }
+  "realtime": {
+    "token": "pk_...",
+    "triggerRunId": "run_trigger",
+    "streamId": "agent-output"
+  }
 }
 ```
 
-`POST /api/v1/chats/{chatId}/messages` takes the same message body. The request returns as soon as the durable run is queued. It does not wait for the model.
+`POST /api/v1/chats/{chatId}/messages` is the route the chat UI uses. `clientMessageId` is required. Attachments are optional, at most 8, with unique positions:
+
+```json
+{
+  "text": "Crop the left half.",
+  "clientMessageId": "6f1c9a4e-6b3a-4d5e-9f21-0c2a9b7d4e11",
+  "planMode": false,
+  "attachments": [{ "assetId": "asset_123", "position": 0 }]
+}
+```
+
+`text` is 1 to 100,000 characters after trimming.
 
 ## Read
 
 - `GET /api/v1/chats?cursor=&limit=&q=` returns pinned chats separately from the cursor page, so pinning a chat does not shift the cursor.
-- `GET /api/v1/chats/{chatId}/messages?cursor=` returns the newest page first. `nextCursor` asks for older messages.
-- `q` searches chat titles and message text.
+- `PATCH /api/v1/chats/{chatId}` accepts `{ "title" }` (1 to 120 characters) and `{ "pinned": true }`.
+- `POST /api/v1/chats/{chatId}/duplicate` copies the chat for its owner.
+- `GET /api/v1/chats/{chatId}/messages?cursor=&limit=` returns the newest page first. `nextCursor` asks for older messages.
+- `q` matches pinned chats by title. Unpinned chats match the title or the message text.
 
-`DELETE /api/v1/chats/{chatId}` removes the chat for its owner only. Another user's chat is not found.
+`DELETE /api/v1/chats/{chatId}` removes the chat for its owner only.
