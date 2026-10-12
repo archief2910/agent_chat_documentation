@@ -1,0 +1,52 @@
+---
+title: "Read a conversation"
+description: "List messages in a chat, newest page first."
+api: "GET /api/v1/chats/{chatId}/messages"
+authMethod: "bearer"
+playground: "interactive"
+keywords: ["messages", "history", "cursor"]
+---
+
+Returns the newest page first. Pass `nextCursor` back as `cursor` to read older messages.
+
+<ParamField path="chatId" type="string" required>
+  Chat owned by the caller. Another user's chat is `404`.
+</ParamField>
+
+<ParamField query="cursor" type="string">
+  Opaque cursor from the previous page.
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Page size, at most 100.
+</ParamField>
+
+<RequestExample>
+
+```bash
+curl "https://agent-chat-backend-production.up.railway.app/api/v1/chats/chat_123/messages?limit=20" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json
+{
+  "messages": [],
+  "nextCursor": null
+}
+```
+
+</ResponseExample>
+
+<ResponseField name="messages" type="array" required>
+  Each message has `id`, `role`, `status`, `content`, `attachments`, and `createdAt`. `content` is the ordered block list: text, tool use, tool result, and assets.
+</ResponseField>
+
+<ResponseField name="nextCursor" type="string">
+  Present when an older page exists.
+</ResponseField>
+
+`GET /api/v1/chats` lists the caller's chats. `GET /api/v1/chats/{chatId}` reads one chat.

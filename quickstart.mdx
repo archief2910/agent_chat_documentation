@@ -4,7 +4,22 @@ description: "Clerk session tokens and API keys."
 sidebarTitle: "Authentication"
 ---
 
-Send `Authorization: Bearer <credential>` on every route except `GET /api/health` and `POST /api/v1/uploads/notify`.
+Send `Authorization: Bearer <credential>` on every route except `GET /api/health`, `GET /api/v1/config`, and `POST /api/v1/uploads/notify`.
+
+The deployed API is `https://agent-chat-backend-production.up.railway.app`. A call with no credential returns:
+
+```json
+{
+  "error": {
+    "code": "UNAUTHENTICATED",
+    "message": "Sign in to continue.",
+    "retryable": false,
+    "traceId": "687ac8e0-ca57-4af8-9ca7-7085acafd1e2"
+  }
+}
+```
+
+`traceId` is also the `x-request-id` header.
 
 The host is the backend origin. There is no public API host yet, so use `http://localhost:3001` while the server runs on your machine.
 

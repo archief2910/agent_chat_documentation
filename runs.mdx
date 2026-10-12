@@ -1,10 +1,32 @@
 ---
-title: Runs
-description: Poll status, stop a turn, or retry a failed one.
-sidebarTitle: "Runs"
+title: "Runs"
+description: "Poll a long-running turn, stop it, or retry a failed one."
+api: "GET /api/v1/runs/{runId}"
+authMethod: "bearer"
+playground: "interactive"
+keywords:
+  - "runs"
+  - "status"
+  - "cancel"
+  - "retry"
 ---
 
-`GET /api/v1/runs/{runId}`
+`POST /api/v1/chat/completions` and `POST /api/v1/chats/{chatId}/messages` return before the model finishes. This route is how you read that work.
+
+<ParamField path="runId" type="string" required>
+  The `runId` from the `202` response.
+</ParamField>
+
+<RequestExample>
+
+```bash
+curl https://agent-chat-backend-production.up.railway.app/api/v1/runs/run_123 \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+</RequestExample>
+
+<ResponseExample>
 
 ```json
 {
@@ -27,20 +49,43 @@ sidebarTitle: "Runs"
       "errorMessage": null
     }
   ],
-  "usage": { "promptTokens": 0, "completionTokens": 0, "chargedMicrocredits": "0", "credits": "0" }
+  "usage": {
+    "promptTokens": 0,
+    "completionTokens": 0,
+    "chargedMicrocredits": "0",
+    "credits": "0"
+  }
 }
 ```
 
-`status` moves through `queued`, `thinking`, `working`, `waiting`, `stopping`, then `completed`, `failed`, or `cancelled`. `progress` reaches `100` only at a terminal status.
+</ResponseExample>
 
-`routedModel` is the model OpenRouter Free actually selected. The request itself is always `openrouter/free`. There is no paid fallback.
+<ResponseField name="status" type="string" required>
+  `queued`, `thinking`, `working`, `waiting`, `stopping`, then one of `completed`, `failed`, or `cancelled`.
+</ResponseField>
 
-Text arrives on the realtime stream named `agent-output`. Run status, tools, and progress arrive as run metadata. If the stream disconnects, poll this route. PostgreSQL is the copy a reload reads.
+<ResponseField name="progress" type="integer" required>
+  Step count as a percent from 0 to 100. It reaches 100 only when the status is terminal.
+</ResponseField>
 
-`POST /api/v1/runs/{runId}/cancel` stops the turn.
+<ResponseField name="routedModel" type="string">
+  The model OpenRouter Free selected. The request itself is always `openrouter/free`.
+</ResponseField>
 
-`POST /api/v1/runs/{runId}/retry` is allowed only when the run is `failed` or `cancelled`. It submits the same user text and attachments as a new turn. Send `clientMessageId` to make that retry idempotent.
+<ResponseField name="assistantMessage.content" type="array">
+  Saved blocks in order: text, tool use, tool result, and assets. A reload reads these from Postgres. The live token stream can be ahead of the last checkpoint.
+</ResponseField>
 
-`POST /api/v1/runs/{runId}/realtime-token` mints a new read token. Use it when the stream token expires.
+<ResponseField name="waitpoint" type="object">
+  Present while the run is paused for a plan or credit approval. `kind` is `options`, `plan`, `credit`, or `media`. Answer it with `POST /api/v1/waitpoints/{id}/respond`. The same answer again is accepted. A different answer is `409`.
+</ResponseField>
 
-While `status` is `waiting`, the run is paused for an approval. Answer it with `POST /api/v1/waitpoints/{waitpointId}/respond`. Sending the same answer again is accepted. A different answer is rejected. If nobody answers before the wait expires, the turn ends and the user is told to send a new message.
+## Other run calls
+
+| Call | Result |
+| --- | --- |
+| `POST /api/v1/runs/{runId}/cancel` | Status becomes `stopping`, then `cancelled`. |
+| `POST /api/v1/runs/{runId}/retry` | Allowed only when the run is `failed` or `cancelled`. Sends the same user text and attachments as a new turn. Optional `clientMessageId` makes that retry idempotent. |
+| `POST /api/v1/runs/{runId}/realtime-token` | A new read token for stream `agent-output`. Keep polling this status route if the stream disconnects. |
+
+`queued` means the turn is saved and the worker has not started. `thinking` and `working` mean the worker is running. `waiting` means a waitpoint is open.

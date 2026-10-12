@@ -1,0 +1,63 @@
+---
+title: "Submit a message"
+description: "Send a message into an existing chat, with optional attachments."
+api: "POST /api/v1/chats/{chatId}/messages"
+authMethod: "bearer"
+playground: "interactive"
+keywords: ["messages", "attachments", "chats"]
+---
+
+The route the chat UI uses. `clientMessageId` is required. The response is `202` and the run is still `queued`.
+
+<ParamField path="chatId" type="string" required>
+  Chat owned by the caller.
+</ParamField>
+
+<ParamField body="text" type="string" required>
+  1 to 32,000 characters on the current deployment.
+</ParamField>
+
+<ParamField body="clientMessageId" type="string" required>
+  UUID. The same value returns the original run instead of starting another.
+</ParamField>
+
+<ParamField body="planMode" type="boolean">
+  When true, billable Magica tools wait for approval.
+</ParamField>
+
+<ParamField body="attachments" type="object[]">
+  At most 8. Each item is `{ "assetId": "asset_123", "position": 0 }`. Positions must be unique. The asset must belong to the caller.
+</ParamField>
+
+<RequestExample>
+
+```bash
+curl -X POST https://agent-chat-backend-production.up.railway.app/api/v1/chats/chat_123/messages \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Crop the left half.","clientMessageId":"6f1c9a4e-6b3a-4d5e-9f21-0c2a9b7d4e11","attachments":[{"assetId":"asset_123","position":0}]}'
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json
+{
+  "chatId": "chat_123",
+  "messageId": "msg_user",
+  "assistantMessageId": "msg_assistant",
+  "runId": "run_123",
+  "status": "queued",
+  "replayed": false,
+  "realtime": {
+    "token": "pk_...",
+    "triggerRunId": "run_trigger",
+    "streamId": "agent-output"
+  }
+}
+```
+
+</ResponseExample>
+
+A second send while this chat already has an active run returns `409` `RUN_ACTIVE`. Nothing new is written.

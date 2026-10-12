@@ -1,29 +1,47 @@
 ---
-title: Conversations
-description: Create a chat, submit a message, and read history.
+title: "Conversations"
+description: "Start a chat-style completion. The response returns before the model finishes."
+api: "POST /api/v1/chat/completions"
+authMethod: "bearer"
+playground: "interactive"
 keywords:
+  - "completions"
   - "chats"
   - "messages"
-  - "completions"
-sidebarTitle: "Conversations"
 ---
 
-## Start a turn
+Creates a chat when `chatId` is omitted, saves the user message, and starts one durable run. The HTTP call returns `202` while the run is still `queued`.
 
-`POST /api/v1/chat/completions`
+This route does not accept attachments. To attach files, use [Submit a message](/messages).
 
-```json
-{
-  "chatId": "optional existing chat",
-  "text": "Crop the left half of the attached image.",
-  "clientMessageId": "6f1c9a4e-6b3a-4d5e-9f21-0c2a9b7d4e11",
-  "planMode": false
-}
+<ParamField body="text" type="string" required>
+  1 to 32,000 characters on the current deployment. `GET /api/v1/config` reports `maxMessageChars`.
+</ParamField>
+
+<ParamField body="chatId" type="string">
+  Existing chat. Omit it and the API creates one.
+</ParamField>
+
+<ParamField body="clientMessageId" type="string">
+  UUID. Optional here. If you omit it, the server generates one. Sending the same value again returns the original run.
+</ParamField>
+
+<ParamField body="planMode" type="boolean">
+  When true, billable Magica tools wait for approval before they run.
+</ParamField>
+
+<RequestExample>
+
+```bash
+curl -X POST https://agent-chat-backend-production.up.railway.app/api/v1/chat/completions \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Crop the left half of the image.","clientMessageId":"6f1c9a4e-6b3a-4d5e-9f21-0c2a9b7d4e11"}'
 ```
 
-Omit `chatId` to create a chat. `clientMessageId` is optional on this route. If you omit it, the server generates one. Send the same `clientMessageId` again to get the original run instead of a second one. This route does not accept attachments.
+</RequestExample>
 
-`202` response:
+<ResponseExample>
 
 ```json
 {
@@ -41,25 +59,25 @@ Omit `chatId` to create a chat. `clientMessageId` is optional on this route. If 
 }
 ```
 
-`POST /api/v1/chats/{chatId}/messages` is the route the chat UI uses. `clientMessageId` is required. Attachments are optional, at most 8, with unique positions:
+</ResponseExample>
 
-```json
-{
-  "text": "Crop the left half.",
-  "clientMessageId": "6f1c9a4e-6b3a-4d5e-9f21-0c2a9b7d4e11",
-  "planMode": false,
-  "attachments": [{ "assetId": "asset_123", "position": 0 }]
-}
-```
+<ResponseField name="runId" type="string" required>
+  Poll this with `GET /api/v1/runs/{runId}`.
+</ResponseField>
 
-`text` is 1 to 100,000 characters after trimming.
+<ResponseField name="status" type="string" required>
+  `queued` in this response. Later values are `thinking`, `working`, `waiting`, `stopping`, then `completed`, `failed`, or `cancelled`.
+</ResponseField>
 
-## Read
+<ResponseField name="realtime.streamId" type="string" required>
+  Always `agent-output`. Text chunks use this stream. Run status uses metadata on the same Trigger.dev run.
+</ResponseField>
 
-- `GET /api/v1/chats?cursor=&limit=&q=` returns pinned chats separately from the cursor page, so pinning a chat does not shift the cursor.
-- `PATCH /api/v1/chats/{chatId}` accepts `{ "title" }` (1 to 120 characters) and `{ "pinned": true }`.
-- `POST /api/v1/chats/{chatId}/duplicate` copies the chat for its owner.
+## Read history
+
+- `GET /api/v1/chats?cursor=&limit=&q=` lists chats. Pinned chats stay on their own list. `q` matches pinned chats by title. Unpinned chats match the title or the message text.
+- `GET /api/v1/chats/{chatId}` reads one chat.
 - `GET /api/v1/chats/{chatId}/messages?cursor=&limit=` returns the newest page first. `nextCursor` asks for older messages.
-- `q` matches pinned chats by title. Unpinned chats match the title or the message text.
-
-`DELETE /api/v1/chats/{chatId}` removes the chat for its owner only.
+- `PATCH /api/v1/chats/{chatId}` accepts `title` (1 to 120 characters) and `pinned`.
+- `POST /api/v1/chats/{chatId}/duplicate` copies the chat for its owner.
+- `DELETE /api/v1/chats/{chatId}` removes the chat for its owner only.

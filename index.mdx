@@ -1,36 +1,65 @@
 ---
 title: "Introduction"
-description: "How a long-running agent turn works."
+description: "The public Agent Chat API and how a long-running turn works."
 keywords:
   - "agent chat"
+  - "railway"
   - "runs"
-  - "long-running"
-sidebarTitle: "Introduction"
 ---
 
-The public API is versioned at `/api/v1`.
+Base URL: `https://agent-chat-backend-production.up.railway.app`
 
-<Note>
-  Locally the host is `http://localhost:3001`. In production, use the HTTPS origin of the API. This site is the reference. It is not a second API host.
-</Note>
+Every versioned route is under `/api/v1`. Send `Authorization: Bearer <credential>` on those routes. `GET /api/health` and `GET /api/v1/config` are open.
+
+<Check>
+  Checked against the deployment on 13 Oct 2026. `GET /api/health` returned `200` with `{ "ok": true, "database": "up" }`.
+</Check>
+
+`GET /api/v1/config` on that host currently reports:
+
+| Field | Live value |
+| --- | --- |
+| `model` | `openrouter/free` |
+| `maxMessageChars` | `32000` |
+| `admissionMicrocredits` | `5000` (0.005 credits) |
+| `uploads.enabled` | `true` |
+| `uploads.maxFiles` | `8` |
+| `uploads.maxFileBytes` | `500000000` |
+| `uploads.monthlyBytes` | `5000000000` |
+| `waitpointTimeoutMinutes` | `30` |
 
 A message does not wait for the model to finish.
 
 <Steps>
   <Step title="Start the turn">
-    `POST /api/v1/chat/completions` or `POST /api/v1/chats/{chatId}/messages` checks the caller, saves the user message, and starts one durable run.
+    `POST /api/v1/chat/completions` creates a chat when you omit `chatId`. `POST /api/v1/chats/{chatId}/messages` sends into a chat you already have. Both return `202` with `runId` and status `queued`.
   </Step>
   <Step title="Read the run">
-    The response is `202` with `runId`. Poll `GET /api/v1/runs/{runId}` until `status` is `completed`, `failed`, or `cancelled`.
+    Poll `GET /api/v1/runs/{runId}` until `status` is `completed`, `failed`, or `cancelled`. `progress` is `100` only then.
   </Step>
   <Step title="Reload from Postgres">
-    Text streams on stream id `agent-output`. Run status travels as metadata. PostgreSQL is the copy a reload reads.
+    Text streams on stream id `agent-output`. Status, tools, and waitpoints travel as run metadata. PostgreSQL is the copy a reload reads.
   </Step>
 </Steps>
 
-A chat can have one active run. A second send returns `409` with that run's id.
+A chat can have one active run. A second send returns `409` with code `RUN_ACTIVE` and that run's id.
 
-Crop Image, GPT Image 2, and Merge Videos run on Magica. The Magica key never leaves the server. The model route is OpenRouter Free (`openrouter/free`) with no paid fallback.
+Without a credential, those routes return `401`:
+
+```json
+{
+  "error": {
+    "code": "UNAUTHENTICATED",
+    "message": "Sign in to continue.",
+    "retryable": false,
+    "traceId": "687ac8e0-ca57-4af8-9ca7-7085acafd1e2"
+  }
+}
+```
+
+`traceId` matches the `x-request-id` response header.
+
+Crop Image, GPT Image 2, and Merge Videos run on Magica through `POST /api/v1/tools/{name}/runs`. The Magica key stays on the server.
 
 <Columns cols={2}>
   <Card title="Authentication" icon="key" href="/quickstart">
@@ -42,10 +71,10 @@ Crop Image, GPT Image 2, and Merge Videos run on Magica. The Magica key never le
   </Card>
 
   <Card title="Runs" icon="play" href="/runs">
-    Status, cancel, retry, and a fresh realtime token.
+    Poll, cancel, and retry a long-running turn.
   </Card>
 
   <Card title="Webhooks" icon="webhook" href="/webhooks">
-    Signed notices when a turn or a tool finishes.
+    Signed `agent.started`, `agent.completed`, `agent.failed`, and `tool.completed` events.
   </Card>
 </Columns>

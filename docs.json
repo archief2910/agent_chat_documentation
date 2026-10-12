@@ -22,6 +22,8 @@
         "group": "API",
         "pages": [
           "completions",
+          "messages",
+          "history",
           "runs",
           "tools",
           "uploads",
@@ -72,5 +74,24 @@
       "linkedin": "https://linkedin.com/company/mintlify"
     }
   },
-  "description": "Versioned API for agent conversations, Magica tool runs, and signed lifecycle webhooks."
+  "description": "Versioned API for agent conversations, Magica tool runs, and signed lifecycle webhooks.",
+  "api": {
+    "playground": {
+      "display": "interactive",
+      "proxy": true
+    },
+    "examples": {
+      "languages": [
+        "bash",
+        "javascript",
+        "python"
+      ]
+    },
+    "mdx": {
+      "auth": {
+        "method": "bearer"
+      },
+      "server": "https://agent-chat-backend-production.up.railway.app"
+    }
+  }
 }
